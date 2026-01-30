@@ -113,9 +113,9 @@
 
 /* 代码块基础样式 */
 pre {
-    margin: 12px 0;
+    margin: 2px 0;
     position: relative;
-    border-radius: 8px;
+    border-radius: 18px;
     background-color: var(--cerebr-pre-bg);
     overflow: hidden;
 }
@@ -130,7 +130,7 @@ pre code {
     line-height: 1rem;
     tab-size: 4;
     -webkit-font-smoothing: auto;
-    border-radius: 8px;
+    border-radius: 18px;
     background-color: var(--cerebr-code-block-bg);
     color: var(--cerebr-code-block-color);
     border: 1px solid var(--cerebr-code-block-border);
@@ -141,7 +141,7 @@ pre code {
     display: block;
     overflow-x: auto;
     padding: 1em;
-    border-radius: 6px;
+    border-radius: 18px;
     font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
     white-space: pre;
     /* 浅色模式默认样式 */
