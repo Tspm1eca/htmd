@@ -197,6 +197,16 @@ pre::before {
     background-color: var(--cerebr-code-tag-bg);
     border-bottom-left-radius: 8px;
     opacity: 0.5;
+    /* 伸缩动画 */
+    transform: scale(1);
+    transform-origin: top right;
+    transition: opacity 0.2s ease-in-out, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* hover 时隐藏语言标签 - 带伸缩动画 */
+pre:hover::before {
+    opacity: 0;
+    transform: scale(0.8);
 }
 
 /* 为所有的语法高亮元素添加统一字体 */

@@ -81,7 +81,7 @@ window.renderMermaidDiagrams = async () => {
                         overflow: hidden;
                         position: relative;
                         border: 1px solid var(--cerebr-border-color);
-                        border-radius: 8px;
+                        border-radius: 18px;
                         background: var(--cerebr-bg-color);
                         margin: 10px 0;
                     `;
