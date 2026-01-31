@@ -30,9 +30,29 @@ export function processMathAndMarkdown(text) {
     const mathExpressions = [];
     const imageExpressions = [];
     const linkExpressions = [];
+    const codeBlockExpressions = [];
+    const inlineCodeExpressions = [];
     let mathIndex = 0;
     let imageIndex = 0;
     let linkIndex = 0;
+    let codeBlockIndex = 0;
+    let inlineCodeIndex = 0;
+
+    // 預處理，提取代碼塊（防止代碼塊內容被其他處理邏輯修改）
+    text = text.replace(/```[\s\S]*?```/g, (match) => {
+        const placeholder = `%%CODE_BLOCK_${codeBlockIndex}%%`;
+        codeBlockExpressions.push(match);
+        codeBlockIndex++;
+        return placeholder;
+    });
+
+    // 預處理，提取行內代碼（防止行內代碼內容被其他處理邏輯修改）
+    text = text.replace(/`[^`\n]+`/g, (match) => {
+        const placeholder = `%%INLINE_CODE_${inlineCodeIndex}%%`;
+        inlineCodeExpressions.push(match);
+        inlineCodeIndex++;
+        return placeholder;
+    });
 
     // 预处理，提取图片标签
     text = text.replace(/<span class="image-tag".*?<\/span>/g, (match) => {
@@ -250,6 +270,16 @@ export function processMathAndMarkdown(text) {
     // 恢复 Markdown 連結（在 marked.parse 之前恢復，讓 marked 正確解析連結）
     text = text.replace(/%%LINK_EXPRESSION_(\d+)%%/g, (_, index) => {
         return linkExpressions[index];
+    });
+
+    // 恢復行內代碼（在 marked.parse 之前恢復）
+    text = text.replace(/%%INLINE_CODE_(\d+)%%/g, (_, index) => {
+        return inlineCodeExpressions[index];
+    });
+
+    // 恢復代碼塊（在 marked.parse 之前恢復）
+    text = text.replace(/%%CODE_BLOCK_(\d+)%%/g, (_, index) => {
+        return codeBlockExpressions[index];
     });
 
     // 渲染 Markdown
