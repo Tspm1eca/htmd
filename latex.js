@@ -1,23 +1,26 @@
-// 处理数学公式和 Markdown 的函数
-let markedConfigured = false;
-let mermaidRenderScheduled = false;
+/**
+ * LaTeX 數學公式處理模組
+ * 處理數學公式的提取、轉換和渲染
+ */
 
-function scheduleMermaidRender() {
-    if (mermaidRenderScheduled) return;
-    mermaidRenderScheduled = true;
-    const run = () => {
-        mermaidRenderScheduled = false;
-        if (window.renderMermaidDiagrams) {
-            window.renderMermaidDiagrams();
-        }
-    };
-    if (typeof requestIdleCallback === 'function') {
-        requestIdleCallback(run, { timeout: 300 });
-    } else {
-        setTimeout(run, 0);
-    }
-}
+import { processCitations } from './citation.js';
+import {
+    extractCodeBlocks,
+    extractInlineCode,
+    extractLinks,
+    restoreCodeBlocks,
+    restoreInlineCode,
+    restoreLinks,
+    processBoldFormatting,
+    processThinkTags,
+    renderMarkdown
+} from './markdown.js';
 
+/**
+ * 檢測文本是否可能包含數學公式
+ * @param {string} text - 要檢測的文本
+ * @returns {boolean} 是否可能包含數學公式
+ */
 export function textMayContainMath(text) {
     if (!text) return false;
     const str = String(text);
@@ -26,65 +29,27 @@ export function textMayContainMath(text) {
     const unescapedDollars = str.match(/(^|[^\\])\$/g);
     return (unescapedDollars?.length ?? 0) >= 2;
 }
-export function processMathAndMarkdown(text) {
-    const mathExpressions = [];
-    const imageExpressions = [];
-    const linkExpressions = [];
-    const codeBlockExpressions = [];
-    const inlineCodeExpressions = [];
-    let mathIndex = 0;
-    let imageIndex = 0;
-    let linkIndex = 0;
-    let codeBlockIndex = 0;
-    let inlineCodeIndex = 0;
 
-    // 預處理，提取代碼塊（防止代碼塊內容被其他處理邏輯修改）
-    text = text.replace(/```[\s\S]*?```/g, (match) => {
-        const placeholder = `%%CODE_BLOCK_${codeBlockIndex}%%`;
-        codeBlockExpressions.push(match);
-        codeBlockIndex++;
-        return placeholder;
-    });
+/**
+ * \mathds 字符映射表
+ */
+const mathdsMap = {
+    'A': '𝔸', 'B': '𝔹', 'C': 'ℂ', 'D': '𝔻', 'E': '𝔼',
+    'F': '𝔽', 'G': '𝔾', 'H': 'ℍ', 'I': '𝕀', 'J': '𝕁',
+    'K': '𝕂', 'L': '𝕃', 'M': '𝕄', 'N': 'ℕ', 'O': '𝕆',
+    'P': 'ℙ', 'Q': 'ℚ', 'R': 'ℝ', 'S': '𝕊', 'T': '𝕋',
+    'U': '𝕌', 'V': '𝕍', 'W': '𝕎', 'X': '𝕏', 'Y': '𝕐',
+    'Z': 'ℤ',
+    '0': '𝟘', '1': '𝟙', '2': '𝟚', '3': '𝟛', '4': '𝟜',
+    '5': '𝟝', '6': '𝟞', '7': '𝟟', '8': '𝟠', '9': '𝟡'
+};
 
-    // 預處理，提取行內代碼（防止行內代碼內容被其他處理邏輯修改）
-    text = text.replace(/`[^`\n]+`/g, (match) => {
-        const placeholder = `%%INLINE_CODE_${inlineCodeIndex}%%`;
-        inlineCodeExpressions.push(match);
-        inlineCodeIndex++;
-        return placeholder;
-    });
-
-    // 预处理，提取图片标签
-    text = text.replace(/<span class="image-tag".*?<\/span>/g, (match) => {
-        const placeholder = `%%IMAGE_EXPRESSION_${imageIndex}%%`;
-        imageExpressions.push(match);
-        imageIndex++;
-        return placeholder;
-    });
-
-    // 预处理，提取 Markdown 連結（防止連結中的 $ 符號被誤判為數學公式）
-    // 注意：排除 cite: 連結，讓它們在後續的 cite 處理邏輯中正常處理
-    text = text.replace(/\[([^\]]+)\]\((?!cite:)([^)]+)\)/g, (match) => {
-        const placeholder = `%%LINK_EXPRESSION_${linkIndex}%%`;
-        linkExpressions.push(match);
-        linkIndex++;
-        return placeholder;
-    });
-
-    text = text.replace(/\\\[([a-zA-Z\d]+)\]/g, '[$1]');
-
-    // 添加 \mathds 字符映射
-    const mathdsMap = {
-        'A': '𝔸', 'B': '𝔹', 'C': 'ℂ', 'D': '𝔻', 'E': '𝔼',
-        'F': '𝔽', 'G': '𝔾', 'H': 'ℍ', 'I': '𝕀', 'J': '𝕁',
-        'K': '𝕂', 'L': '𝕃', 'M': '𝕄', 'N': 'ℕ', 'O': '𝕆',
-        'P': 'ℙ', 'Q': 'ℚ', 'R': 'ℝ', 'S': '𝕊', 'T': '𝕋',
-        'U': '𝕌', 'V': '𝕍', 'W': '𝕎', 'X': '𝕏', 'Y': '𝕐',
-        'Z': 'ℤ',
-        '0': '𝟘', '1': '𝟙', '2': '𝟚', '3': '𝟛', '4': '𝟜',
-        '5': '𝟝', '6': '𝟞', '7': '𝟟', '8': '𝟠', '9': '𝟡'
-    };
-
+/**
+ * 處理 LaTeX 數學環境
+ * @param {string} text - 要處理的文本
+ * @returns {string} 處理後的文本
+ */
+function processMathEnvironments(text) {
     // 处理 \mathds 命令
     text = text.replace(/\\mathds\{([A-Z0-9])\}/g, (match, char) => {
         return mathdsMap[char] || match;
@@ -105,33 +70,25 @@ export function processMathAndMarkdown(text) {
     // 处理 \boxed 命令，将其包装在 \[ \] 中
     text = text.replace(/(\\\[\s*)?\$*\\boxed\{([\s\S]+)\}\$*(\s*\\\])?/g, '\\[\\boxed{$2}\\]');
 
-    text = text.replace(/^---\n$/gm, '');
-
     // 处理 \textsc 命令
     text = text.replace(/\\textsc\{([^}]+)\}/g, (match, content) => {
         return content.toUpperCase();
     });
 
-    // 处理 think 标签，将其转换为引用格式
-    // 首先处理完整的 <think>...</think> 标签
-    text = text.replace(/<think>([\s\S]*?)<\/think>/g, (match, content) => {
-        // 处理多行文本，为每一行添加引用符号
-        return content.trim().split('\n').map(line => `> ${line.trim()}`).join('\n');
-    });
+    return text;
+}
 
-    // 然后处理只有开始标签的情况
-    text = text.replace(/<think>\n?([\s\S]*?)(?=<\/think>|$)/g, (match, content) => {
-        if (!match.includes('</think>')) {
-            // 如果没有结束标签，将所有后续内容都转换为引用格式
-            return content.trim().split('\n').map(line => `> ${line.trim()}`).join('\n');
-        }
-        return match; // 如果有结束标签，保持原样（因为已经在上一步处理过了）
-    });
+/**
+ * 提取並處理數學公式
+ * @param {string} text - 要處理的文本
+ * @param {Array} mathExpressions - 存儲數學公式的數組
+ * @returns {string} 替換後的文本
+ */
+function extractMathExpressions(text, mathExpressions) {
+    let mathIndex = mathExpressions.length;
 
-    text = text.replace(/%\n\s*/g, ''); // 移除换行的百分号
-    text = text.replace(/（\\\((.+?)\\）/g, '（\\($1\\)）');
     // 临时替换数学公式（支持 \(..\)、\[..\]、$$..$$ 以及单行内联 $..$）
-    text = text.replace(/(\\\\\([^]+?\\\\\))|(\\\([^]+?\\\))|(\\\[[\s\S]+?\\\])|(\$\$[\s\S]+?\$\$)|(\$(?!\$)[^\n]*?\$)/g, (match) => {
+    return text.replace(/(\\\\\([^]+?\\\\\))|(\\\([^]+?\\\))|(\\\[[\s\S]+?\\\])|(\$\$[\s\S]+?\$\$)|(\$(?!\$)[^\n]*?\$)/g, (match) => {
         // 处理除号
         match = match.replace(/\\div\b/g, ' ÷ ');
         match = match.replace(/\\\[\s*(.+?)\s*\\+\]/g, '\\[ $1 \\]');
@@ -163,132 +120,89 @@ export function processMathAndMarkdown(text) {
         mathIndex++;
         return placeholder;
     });
+}
 
-    // 配置 marked（只初始化一次）
-    if (!markedConfigured) {
-        marked.setOptions({
-            breaks: true,
-            gfm: true,
-            sanitize: false,
-            highlight: function(code, lang) {
-                if (lang === 'mermaid') {
-                    return `<div class="mermaid">${code}</div>`;
-                }
-                if (lang && hljs.getLanguage(lang)) {
-                    try {
-                        return hljs.highlight(code, { language: lang }).value;
-                    } catch (err) {
-                        console.error('代码高亮错误:', err);
-                    }
-                }
-                return hljs.highlightAuto(code).value;
-            },
-            renderer: Object.assign(new marked.Renderer(), {
-                code(code, language) {
-                    // 检查是否包含数学表达式占位符
-                    if (code.includes('%%MATH_EXPRESSION_')) {
-                        return code;  // 如果包含数学表达式，直接返回原文本
-                    }
-                    if (language === 'mermaid') {
-                        return `<div class="mermaid">${code}</div>`;
-                    }
-                    const validLanguage = language && hljs.getLanguage(language) ? language : '';
-                    const highlighted = this.options.highlight(code, validLanguage);
-                    return `<pre data-language="${validLanguage || 'plaintext'}"><code>${highlighted}</code></pre>`;
-                },
-                listitem(text) {
-                    // 保持列表项的原始格式
-                    return `<li>${text}</li>\n`;
-                }
-            })
-        });
-        markedConfigured = true;
-    }
-
-    text = text.replace(/:\s\*\*/g, ':**');
-    text = text.replace(/\*\*([^*]+?)\*\*[^\S\n]+/g, '@@$1@@#');
-    text = text.replace(/\*\*(?=.*[^\S\n].*\*\*)([^*]+?)\*\*(?!\s)/g, '#%$1%#@');
-    text = text.replace(/\*\*(?=.*：.*\*\*)([^*]+?)\*\*(?!\s)/g, '**$1** ');
-    text = text.replace(/\@\@(.+?)\@\@#/g, '**$1** ');
-    text = text.replace(/\#\%(.+?)\%\#\@/g, '**$1** ');
-    text = text.replace(/ *\*\*([^\s]+?)\*\*(?!\s)/g, ' **$1** ');
-    text = text.replace(/(\*\*.+?\*\*)\s：/g, '$1：');
-    text = text.replace(/(\*\*.+?\*\*)\s，/g, '$1，');
-    text = text.replace(/(\*\*.+?\*\*)\s,/g, '$1,');
-    text = text.replace(/(\*\*.+?\*\*)\s\./g, '$1.');
-    text = text.replace(/(\*\*.+?\*\*)\s。/g, '$1。');
-
-    // console.log(text);
-/*
-完整复述下面的字符包括换行：
-为 **Xmodel-2** 的针对**推理任务**进行
-**第一封邮件（7月22日）**是
-即 **a** ⊗ **b** ≠ **b** ⊗ **a**。
-**1. 主要贡献:**
-**2. A 和 B 矩阵的生成**
-*   **开源:** Xmodel-2 是开源的
-*   **OLMo 2-13B**：上下文长度为 **4096 个 token**。
-*/
-
-    // // 处理第一级列表（确保使用3个空格）
-    // text = text.replace(/^ {3,4}\*\s+/mg, '    * ');
-
-    // // 处理列表缩进，保持层级关系但使用4个空格
-    // text = text.replace(/^( {4,})\*(\s+)/mg, (match, spaces, trailing) => {
-    //     // 找出所有列表项的最小缩进空格数
-    //     const minIndent = Math.min(...text.match(/^( *)\*/mg).map(s => s.length - 1));
-    //     // 计算当前项相对于最小缩进的层级（每4个空格算一级）
-    //     const relativeLevel = Math.floor((spaces.length - minIndent) / 4);
-    //     // 根据最小缩进确定最大允许层级
-    //     const maxLevel = minIndent === 0 ? 2 : (minIndent === 4 ? 3 : 4);
-    //     // 限制最终层级
-    //     const level = Math.min(relativeLevel, maxLevel - Math.floor(minIndent / 4));
-    //     // 为每一级添加4个空格
-    //     return '    '.repeat(level) + '* ';
-    // });
-
-    // console.log(text);
-
-    // 預處理 cite: 連結，自動編碼空格和特殊字符
-    // 這樣可以確保 Markdown 解析器正確識別連結
-    // 支援任意文字（包含 | 等特殊字符），匹配到最後一個 ) 為止
-    text = text.replace(/\[(\d+)\]\(cite:(.+?)\)(?=\s|$|[，。,.\]\)])/g, (match, num, citeText) => {
-        const encodedText = encodeURIComponent(citeText.trim());
-        return `[${num}](cite:${encodedText})`;
-    });
-
-    // 備用處理：處理行尾或句尾的 cite 連結
-    text = text.replace(/\[(\d+)\]\(cite:([^)\n]+)\)/g, (match, num, citeText) => {
-        // 檢查是否已經編碼過（避免重複編碼）
-        if (citeText.includes('%')) {
-            return match;
-        }
-        const encodedText = encodeURIComponent(citeText.trim());
-        return `[${num}](cite:${encodedText})`;
-    });
-
-    // 恢复 Markdown 連結（在 marked.parse 之前恢復，讓 marked 正確解析連結）
-    text = text.replace(/%%LINK_EXPRESSION_(\d+)%%/g, (_, index) => {
-        return linkExpressions[index];
-    });
-
-    // 恢復行內代碼（在 marked.parse 之前恢復）
-    text = text.replace(/%%INLINE_CODE_(\d+)%%/g, (_, index) => {
-        return inlineCodeExpressions[index];
-    });
-
-    // 恢復代碼塊（在 marked.parse 之前恢復）
-    text = text.replace(/%%CODE_BLOCK_(\d+)%%/g, (_, index) => {
-        return codeBlockExpressions[index];
-    });
-
-    // 渲染 Markdown
-    let html = marked.parse(text);
-
-    // 恢复数学公式
-    html = html.replace(/%%MATH_EXPRESSION_(\d+)%%/g, (_, index) => {
+/**
+ * 恢復數學公式
+ * @param {string} html - 要處理的 HTML
+ * @param {Array} mathExpressions - 存儲數學公式的數組
+ * @returns {string} 恢復後的 HTML
+ */
+function restoreMathExpressions(html, mathExpressions) {
+    return html.replace(/%%MATH_EXPRESSION_(\d+)%%/g, (_, index) => {
         return mathExpressions[index];
     });
+}
+
+/**
+ * 處理數學公式和 Markdown 的主函數
+ * @param {string} text - 要處理的文本
+ * @returns {string} 處理後的 HTML
+ */
+export function processMathAndMarkdown(text) {
+    const mathExpressions = [];
+    const imageExpressions = [];
+    const linkExpressions = [];
+    const codeBlockExpressions = [];
+    const inlineCodeExpressions = [];
+    let imageIndex = 0;
+
+    // 預處理，提取代碼塊（防止代碼塊內容被其他處理邏輯修改）
+    text = extractCodeBlocks(text, codeBlockExpressions);
+
+    // 預處理，提取行內代碼（防止行內代碼內容被其他處理邏輯修改）
+    text = extractInlineCode(text, inlineCodeExpressions);
+
+    // 预处理，提取图片标签
+    text = text.replace(/<span class="image-tag".*?<\/span>/g, (match) => {
+        const placeholder = `%%IMAGE_EXPRESSION_${imageIndex}%%`;
+        imageExpressions.push(match);
+        imageIndex++;
+        return placeholder;
+    });
+
+    // 预处理，提取 Markdown 連結（防止連結中的 $ 符號被誤判為數學公式）
+    text = extractLinks(text, linkExpressions);
+
+    // 處理轉義的方括號
+    text = text.replace(/\\\[([a-zA-Z\d]+)\]/g, '[$1]');
+
+    // 處理 LaTeX 數學環境
+    text = processMathEnvironments(text);
+
+    // 移除分隔線
+    text = text.replace(/^---\n$/gm, '');
+
+    // 處理 think 標籤
+    text = processThinkTags(text);
+
+    // 移除换行的百分号
+    text = text.replace(/%\n\s*/g, '');
+    text = text.replace(/（\\\((.+?)\\）/g, '（\\($1\\)）');
+
+    // 提取數學公式
+    text = extractMathExpressions(text, mathExpressions);
+
+    // 處理粗體格式
+    text = processBoldFormatting(text);
+
+    // 處理 cite: 連結
+    text = processCitations(text);
+
+    // 恢复 Markdown 連結（在 marked.parse 之前恢復，讓 marked 正確解析連結）
+    text = restoreLinks(text, linkExpressions);
+
+    // 恢復行內代碼（在 marked.parse 之前恢復）
+    text = restoreInlineCode(text, inlineCodeExpressions);
+
+    // 恢復代碼塊（在 marked.parse 之前恢復）
+    text = restoreCodeBlocks(text, codeBlockExpressions);
+
+    // 渲染 Markdown
+    let html = renderMarkdown(text);
+
+    // 恢复数学公式
+    html = restoreMathExpressions(html, mathExpressions);
 
     // 恢复图片
     html = html.replace(/%%IMAGE_EXPRESSION_(\d+)%%/g, (_, index) => {
@@ -298,15 +212,14 @@ export function processMathAndMarkdown(text) {
     // 移除数学公式容器外的 p 标签
     html = html.replace(/<p>\s*(<div class="math-display-container">[\s\S]*?<\/div>)\s*<\/p>/g, '$1');
 
-    // 仅在确实包含 Mermaid 图表时再调度渲染，避免每次消息都触发
-    if (/class=["']mermaid["']/.test(html)) {
-        scheduleMermaidRender();
-    }
-
     return html;
 }
 
-// 渲染数学公式的函数
+/**
+ * 渲染元素中的數學公式
+ * @param {HTMLElement} element - 要渲染的元素
+ * @returns {Promise} 渲染完成的 Promise
+ */
 export function renderMathInElement(element) {
     return new Promise((resolve, reject) => {
         const checkMathJax = () => {
