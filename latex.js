@@ -218,6 +218,24 @@ export function processMathAndMarkdown(text) {
 
     // console.log(text);
 
+    // 預處理 cite: 連結，自動編碼空格和特殊字符
+    // 這樣可以確保 Markdown 解析器正確識別連結
+    // 支援任意文字（包含 | 等特殊字符），匹配到最後一個 ) 為止
+    text = text.replace(/\[(\d+)\]\(cite:(.+?)\)(?=\s|$|[，。,.\]\)])/g, (match, num, citeText) => {
+        const encodedText = encodeURIComponent(citeText.trim());
+        return `[${num}](cite:${encodedText})`;
+    });
+
+    // 備用處理：處理行尾或句尾的 cite 連結
+    text = text.replace(/\[(\d+)\]\(cite:([^)\n]+)\)/g, (match, num, citeText) => {
+        // 檢查是否已經編碼過（避免重複編碼）
+        if (citeText.includes('%')) {
+            return match;
+        }
+        const encodedText = encodeURIComponent(citeText.trim());
+        return `[${num}](cite:${encodedText})`;
+    });
+
     // 渲染 Markdown
     let html = marked.parse(text);
 
