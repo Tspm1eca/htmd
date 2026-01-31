@@ -29,14 +29,25 @@ export function textMayContainMath(text) {
 export function processMathAndMarkdown(text) {
     const mathExpressions = [];
     const imageExpressions = [];
+    const linkExpressions = [];
     let mathIndex = 0;
     let imageIndex = 0;
+    let linkIndex = 0;
 
     // 预处理，提取图片标签
     text = text.replace(/<span class="image-tag".*?<\/span>/g, (match) => {
         const placeholder = `%%IMAGE_EXPRESSION_${imageIndex}%%`;
         imageExpressions.push(match);
         imageIndex++;
+        return placeholder;
+    });
+
+    // 预处理，提取 Markdown 連結（防止連結中的 $ 符號被誤判為數學公式）
+    // 注意：排除 cite: 連結，讓它們在後續的 cite 處理邏輯中正常處理
+    text = text.replace(/\[([^\]]+)\]\((?!cite:)([^)]+)\)/g, (match) => {
+        const placeholder = `%%LINK_EXPRESSION_${linkIndex}%%`;
+        linkExpressions.push(match);
+        linkIndex++;
         return placeholder;
     });
 
@@ -234,6 +245,11 @@ export function processMathAndMarkdown(text) {
         }
         const encodedText = encodeURIComponent(citeText.trim());
         return `[${num}](cite:${encodedText})`;
+    });
+
+    // 恢复 Markdown 連結（在 marked.parse 之前恢復，讓 marked 正確解析連結）
+    text = text.replace(/%%LINK_EXPRESSION_(\d+)%%/g, (_, index) => {
+        return linkExpressions[index];
     });
 
     // 渲染 Markdown
