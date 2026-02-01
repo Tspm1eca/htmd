@@ -143,7 +143,9 @@ pre code {
     padding: 1em;
     border-radius: 18px;
     font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
-    white-space: pre;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
     /* 浅色模式默认样式 */
     background: var(--cerebr-code-block-bg);
     color: var(--cerebr-code-block-color);

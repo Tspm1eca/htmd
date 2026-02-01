@@ -57,9 +57,22 @@ export function configureMarked() {
                 if (language === 'mermaid') {
                     return `<div class="mermaid">${code}</div>`;
                 }
-                const validLanguage = language && hljs.getLanguage(language) ? language : '';
-                const highlighted = this.options.highlight(code, validLanguage);
-                return `<pre data-language="${validLanguage || 'plaintext'}"><code>${highlighted}</code></pre>`;
+
+                let displayLanguage;
+                let highlighted;
+
+                if (language && hljs.getLanguage(language)) {
+                    // 有指定語言且 hljs 支援
+                    displayLanguage = language;
+                    highlighted = hljs.highlight(code, { language }).value;
+                } else {
+                    // 自動識別語言
+                    const result = hljs.highlightAuto(code);
+                    displayLanguage = result.language || 'plaintext';
+                    highlighted = result.value;
+                }
+
+                return `<pre data-language="${displayLanguage}"><code>${highlighted}</code></pre>`;
             },
             listitem(text) {
                 // 保持列表项的原始格式
