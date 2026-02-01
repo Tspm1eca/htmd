@@ -176,8 +176,9 @@ export function processMathAndMarkdown(text) {
     // 處理 think 標籤
     text = processThinkTags(text);
 
-    // 移除换行的百分号
-    text = text.replace(/%\n\s*/g, '');
+    // 移除换行的百分号（排除佔位符中的 %）
+    // 只移除單獨的 % 後跟換行，不影響 %% 開頭的佔位符
+    text = text.replace(/(?<!%)%\n\s*/g, '');
     text = text.replace(/（\\\((.+?)\\）/g, '（\\($1\\)）');
 
     // 提取數學公式
