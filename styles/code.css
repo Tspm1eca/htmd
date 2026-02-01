@@ -1,41 +1,4 @@
-/* 代码相关的CSS变量 */
-:root {
-    /* 代码块变量 - 浅色模式 */
-    --cerebr-table-border-color: #e1e4e8;
-    --cerebr-code-block-bg: #f6f8fa;
-    --cerebr-code-block-color: #24292e;
-    --cerebr-code-block-border: #e1e4e8;
-    --cerebr-code-scrollbar-bg: #f6f8fa;
-    --cerebr-code-scrollbar-thumb: #d1d5da;
-    --cerebr-code-scrollbar-thumb-hover: #a5a9ad;
-    --cerebr-code-tag-bg: #f6f8fa;
-    --cerebr-code-tag-color: #57606a;
-    --cerebr-pre-bg: #0d1117;
-
-    /* 语法高亮 - 浅色模式 */
-    --cerebr-hljs-keyword: #d73a49;
-    --cerebr-hljs-built-in: #005cc5;
-    --cerebr-hljs-type: #d73a49;
-    --cerebr-hljs-literal: #005cc5;
-    --cerebr-hljs-number: #005cc5;
-    --cerebr-hljs-regexp: #032f62;
-    --cerebr-hljs-string: #032f62;
-    --cerebr-hljs-comment: #6a737d;
-    --cerebr-hljs-doctag: #d73a49;
-    --cerebr-hljs-meta: #6a737d;
-    --cerebr-hljs-title: #6f42c1;
-    --cerebr-hljs-tag: #22863a;
-    --cerebr-hljs-attr: #005cc5;
-    --cerebr-hljs-attribute: #005cc5;
-    --cerebr-hljs-template-tag: #d73a49;
-    --cerebr-hljs-template-variable: #d73a49;
-    --cerebr-hljs-variable: #d73a49;
-    --cerebr-hljs-bullet: #735c0f;
-    --cerebr-hljs-emphasis: #24292e;
-    --cerebr-hljs-strong: #24292e;
-}
-
-/* 深色主题变量 */
+/* 代码相关的CSS变量 - 深色主题 */
 :root.dark-theme {
     /* 代码块变量 - 深色模式 */
     --cerebr-table-border-color: #4b5263;
@@ -72,44 +35,6 @@
     --cerebr-hljs-strong: #abb2bf;
 }
 
-/* 系统深色主题 */
-@media (prefers-color-scheme: dark) {
-    :root:not(.light-theme) {
-        /* 代码块变量 - 系统深色模式 */
-        --cerebr-table-border-color: #4b5263;
-        --cerebr-code-block-bg: #282c34;
-        --cerebr-code-block-color: #abb2bf;
-        --cerebr-code-block-border: transparent;
-        --cerebr-code-scrollbar-bg: #282c34;
-        --cerebr-code-scrollbar-thumb: #4b5263;
-        --cerebr-code-scrollbar-thumb-hover: #5c6370;
-        --cerebr-code-tag-bg: #161b22;
-        --cerebr-code-tag-color: #7d8590;
-        --cerebr-pre-bg: #1e222a;
-
-        /* 语法高亮 - 系统深色模式 */
-        --cerebr-hljs-keyword: #c678dd;
-        --cerebr-hljs-built-in: #d19a66;
-        --cerebr-hljs-type: #c678dd;
-        --cerebr-hljs-literal: #d19a66;
-        --cerebr-hljs-number: #d19a66;
-        --cerebr-hljs-regexp: #98c379;
-        --cerebr-hljs-string: #98c379;
-        --cerebr-hljs-comment: #7f848e;
-        --cerebr-hljs-doctag: #c678dd;
-        --cerebr-hljs-meta: #7f848e;
-        --cerebr-hljs-title: #61afef;
-        --cerebr-hljs-tag: #e06c75;
-        --cerebr-hljs-attr: #d19a66;
-        --cerebr-hljs-attribute: #d19a66;
-        --cerebr-hljs-template-tag: #c678dd;
-        --cerebr-hljs-template-variable: #c678dd;
-        --cerebr-hljs-variable: #c678dd;
-        --cerebr-hljs-bullet: #d19a66;
-        --cerebr-hljs-emphasis: #abb2bf;
-        --cerebr-hljs-strong: #abb2bf;
-    }
-}
 
 /* 代码块基础样式 */
 pre {
@@ -146,7 +71,6 @@ pre code {
     white-space: pre-wrap;
     word-wrap: break-word;
     overflow-wrap: break-word;
-    /* 浅色模式默认样式 */
     background: var(--cerebr-code-block-bg);
     color: var(--cerebr-code-block-color);
     border: 1px solid var(--cerebr-code-block-border);
@@ -221,7 +145,7 @@ pre code [class^="hljs-"] {
     font-family: "JetBrains Mono", Monaco, Consolas, "Andale Mono", "DejaVu Sans Mono", monospace;
 }
 
-/* 浅色模式代码高亮 */
+/* 代码高亮样式 */
 pre code .hljs-keyword {
     color: var(--cerebr-hljs-keyword);
 }
