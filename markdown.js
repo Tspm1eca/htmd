@@ -145,7 +145,126 @@ export function renderMarkdown(text) {
         scheduleMermaidRender();
     }
 
+    // 如果包含表格，調度添加調整手柄
+    if (/<table/.test(html)) {
+        scheduleTableResizeHandles();
+    }
+
     return html;
+}
+
+let tableResizeScheduled = false;
+
+/**
+ * 調度添加表格調整手柄
+ */
+function scheduleTableResizeHandles() {
+    if (tableResizeScheduled) return;
+    tableResizeScheduled = true;
+    const run = () => {
+        tableResizeScheduled = false;
+        initTableColumnResize();
+    };
+    if (typeof requestIdleCallback === 'function') {
+        requestIdleCallback(run, { timeout: 300 });
+    } else {
+        setTimeout(run, 0);
+    }
+}
+
+/**
+ * 初始化表格欄位寬度調整功能
+ */
+function initTableColumnResize() {
+    const tables = document.querySelectorAll('table:not([data-resize-init])');
+
+    tables.forEach(table => {
+        table.setAttribute('data-resize-init', 'true');
+
+        const thead = table.querySelector('thead');
+        const tbody = table.querySelector('tbody');
+        const headerCells = table.querySelectorAll('th');
+
+        if (headerCells.length === 0) return;
+
+        // 獲取表格總寬度
+        const tableWidth = thead ? thead.offsetWidth : table.offsetWidth;
+
+        // 初始化所有欄位的寬度（使用百分比）
+        const initialWidths = [];
+        headerCells.forEach((th) => {
+            initialWidths.push(th.offsetWidth);
+        });
+
+        headerCells.forEach((th, index) => {
+            // 跳過最後一個欄位（不需要右側調整手柄）
+            if (index === headerCells.length - 1) return;
+
+            const handle = document.createElement('div');
+            handle.className = 'resize-handle';
+            th.appendChild(handle);
+
+            let startX, startWidthPercent, nextStartWidthPercent;
+            let nextTh = headerCells[index + 1];
+
+            const onMouseDown = (e) => {
+                e.preventDefault();
+                startX = e.pageX;
+
+                // 計算當前寬度百分比
+                const currentTableWidth = thead ? thead.offsetWidth : table.offsetWidth;
+                startWidthPercent = (th.offsetWidth / currentTableWidth) * 100;
+                nextStartWidthPercent = nextTh ? (nextTh.offsetWidth / currentTableWidth) * 100 : 0;
+
+                handle.classList.add('resizing');
+                table.classList.add('resizing');
+
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+            };
+
+            const onMouseMove = (e) => {
+                const currentTableWidth = thead ? thead.offsetWidth : table.offsetWidth;
+                const diff = e.pageX - startX;
+                const diffPercent = (diff / currentTableWidth) * 100;
+
+                const newWidthPercent = startWidthPercent + diffPercent;
+                const newNextWidthPercent = nextStartWidthPercent - diffPercent;
+
+                // 設定最小寬度為 5%
+                if (newWidthPercent >= 5 && newNextWidthPercent >= 5) {
+                    th.style.width = newWidthPercent + '%';
+                    if (nextTh) {
+                        nextTh.style.width = newNextWidthPercent + '%';
+                    }
+
+                    // 同步更新對應的 tbody 欄位寬度
+                    if (tbody) {
+                        const firstRow = tbody.querySelector('tr');
+                        if (firstRow) {
+                            const cells = firstRow.querySelectorAll('td');
+                            if (cells[index]) {
+                                cells[index].style.width = newWidthPercent + '%';
+                            }
+                            if (cells[index + 1]) {
+                                cells[index + 1].style.width = newNextWidthPercent + '%';
+                            }
+                        }
+                    }
+                }
+            };
+
+            const onMouseUp = () => {
+                handle.classList.remove('resizing');
+                table.classList.remove('resizing');
+
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+            };
+
+            handle.addEventListener('mousedown', onMouseDown);
+        });
+    });
 }
 
 /**

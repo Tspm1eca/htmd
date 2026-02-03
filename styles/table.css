@@ -6,17 +6,38 @@ table {
     border-spacing: 0;
     width: 100%;
     margin: 1em 0;
-    border: 1px solid var(--cerebr-table-border-color);
     border-radius: 18px;
+}
+
+tbody,
+thead {
+    display: table;
+    width: 100%;
+    table-layout: fixed;
+}
+
+tr {
+    display: table-row;
 }
 
 th,
 td {
+    display: table-cell;
     border: 1px solid var(--cerebr-table-border-color);
     border-left: none;
     border-top: none;
     padding: 8px;
     text-align: left;
+}
+
+th:last-child,
+td:last-child {
+    border-right: 1px solid var(--cerebr-table-border-color);
+}
+
+tr:last-child td,
+tr:last-child th {
+    border-bottom: 1px solid var(--cerebr-table-border-color);
 }
 
 th:first-child,
@@ -57,4 +78,33 @@ table > tr:last-child td:last-child {
 th {
     background-color: var(--cerebr-code-block-bg);
     font-weight: bold;
+    position: relative;
+}
+
+/* 欄位寬度調整手柄 */
+th .resize-handle {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 5px;
+    cursor: col-resize;
+    background: transparent;
+    z-index: 1;
+}
+
+th .resize-handle:hover,
+th .resize-handle.resizing {
+    background: var(--cerebr-table-border-color);
+}
+
+/* 調整中的表格樣式 */
+table.resizing {
+    cursor: col-resize;
+    user-select: none;
+}
+
+table.resizing th,
+table.resizing td {
+    user-select: none;
 }
