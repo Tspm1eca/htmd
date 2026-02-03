@@ -137,6 +137,9 @@ export function renderMarkdown(text) {
     // 確保 marked 已配置
     configureMarked();
 
+    // 預處理表格中連結內的管道符號
+    text = preprocessTableLinks(text);
+
     // 渲染 Markdown
     let html = marked.parse(text);
 
@@ -349,5 +352,27 @@ export function extractLinks(text, linkExpressions) {
 export function restoreLinks(text, linkExpressions) {
     return text.replace(/%%LINK_EXPRESSION_(\d+)%%/g, (_, index) => {
         return linkExpressions[index];
+    });
+}
+
+/**
+ * 預處理表格中連結內的管道符號
+ * 在 Markdown 表格中，| 是欄位分隔符，但連結文字中可能包含 |
+ * 這會導致表格解析錯誤，因此需要將連結文字中的 | 替換為 HTML 實體
+ * @param {string} text - 要處理的文本
+ * @returns {string} 處理後的文本
+ */
+export function preprocessTableLinks(text) {
+    // 匹配表格行（包含至少兩個 | 的行，表示有欄位分隔）
+    return text.replace(/^(\|.*\|.*)$/gm, (line) => {
+        // 處理 [text](url) 格式的連結，將連結文字中的 | 替換為 HTML 實體
+        return line.replace(/\[([^\]]*?)\]\(([^)]+)\)/g, (match, linkText, url) => {
+            // 如果連結文字中包含 |，則替換為 HTML 實體
+            if (linkText.includes('|')) {
+                const escapedText = linkText.replace(/\|/g, '&#124;');
+                return `[${escapedText}](${url})`;
+            }
+            return match;
+        });
     });
 }
