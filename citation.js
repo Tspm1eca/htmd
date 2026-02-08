@@ -47,6 +47,72 @@ function formatConsecutiveCitationLinks(text) {
 }
 
 /**
+ * Normalize Text Fragment citation links with a parenthesis-depth scan.
+ * This avoids cross-link captures when punctuation appears right after `)`.
+ */
+function normalizeTextFragmentLinks(text) {
+    const citationStartRegex = /\[(\d+)\]\(#:~:text=/g;
+    let normalizedText = '';
+    let cursor = 0;
+    let hasReplacement = false;
+
+    while (true) {
+        const startMatch = citationStartRegex.exec(text);
+        if (!startMatch) {
+            break;
+        }
+
+        const citationNumber = startMatch[1];
+        const linkStartIndex = startMatch.index;
+        const payloadStartIndex = citationStartRegex.lastIndex;
+
+        let scanIndex = payloadStartIndex;
+        let parenthesisDepth = 1;
+        let hasClosingParenthesis = false;
+
+        while (scanIndex < text.length) {
+            const currentChar = text[scanIndex];
+
+            if (currentChar === '\n') {
+                break;
+            }
+
+            if (currentChar === '(') {
+                parenthesisDepth += 1;
+            } else if (currentChar === ')') {
+                parenthesisDepth -= 1;
+                if (parenthesisDepth === 0) {
+                    hasClosingParenthesis = true;
+                    break;
+                }
+            }
+
+            scanIndex += 1;
+        }
+
+        if (!hasClosingParenthesis) {
+            continue;
+        }
+
+        const fragmentText = text.slice(payloadStartIndex, scanIndex);
+        const encodedFragmentText = encodeCitationPayload(fragmentText);
+
+        normalizedText += text.slice(cursor, linkStartIndex);
+        normalizedText += `[${citationNumber}](${TEXT_FRAGMENT_PREFIX}${encodedFragmentText})`;
+
+        cursor = scanIndex + 1;
+        citationStartRegex.lastIndex = cursor;
+        hasReplacement = true;
+    }
+
+    if (!hasReplacement) {
+        return text;
+    }
+
+    return normalizedText + text.slice(cursor);
+}
+
+/**
  * Process citation links in message text.
  * Supports:
  * 1) [n](#:~:text=...)
@@ -56,16 +122,7 @@ export function processCitations(text) {
         return text;
     }
 
-    // Ensure Text Fragment links are correctly encoded (boundary-aware)
-    text = text.replace(
-        /\[(\d+)\]\(#:~:text=(.+?)\)(?=\s|$|\[|[,.\u3002\]\)])/g,
-        (match, num, fragmentText) => `[${num}](${TEXT_FRAGMENT_PREFIX}${encodeCitationPayload(fragmentText)})`
-    );
-
-    // Fallback for Text Fragment links at line end/sentence end
-    text = text.replace(/\[(\d+)\]\(#:~:text=([^)\n]+)\)/g, (match, num, fragmentText) => {
-        return `[${num}](${TEXT_FRAGMENT_PREFIX}${encodeCitationPayload(fragmentText)})`;
-    });
+    text = normalizeTextFragmentLinks(text);
 
     return formatConsecutiveCitationLinks(text);
 }
