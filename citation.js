@@ -1,59 +1,112 @@
 /**
- * 引用處理模組
- * 處理 cite: 連結的編碼和渲染
+ * Citation processing module.
+ * Uses W3C Text Fragment format: #:~:text=
  */
+
+const TEXT_FRAGMENT_PREFIX = '#:~:text=';
 
 /**
- * 處理文本中的 cite: 連結
- * 自動編碼空格和特殊字符，確保 Markdown 解析器正確識別連結
- * @param {string} text - 要處理的文本
- * @returns {string} 處理後的文本
+ * Normalize citation payload to a safely encoded URI component.
+ * - fully encoded: remains stable
+ * - partially encoded: decoded then re-encoded
+ * - plain text: encoded directly
  */
-export function processCitations(text) {
-    // 預處理 cite: 連結，自動編碼空格和特殊字符
-    // 這樣可以確保 Markdown 解析器正確識別連結
-    // 支援任意文字（包含 | 等特殊字符），匹配到最後一個 ) 為止
-    text = text.replace(/\[(\d+)\]\(cite:(.+?)\)(?=\s|$|[，。,.\]\)])/g, (match, num, citeText) => {
-        const encodedText = encodeURIComponent(citeText.trim());
-        return `[${num}](cite:${encodedText})`;
-    });
+function encodeCitationPayload(text) {
+    const value = String(text ?? '').trim();
+    if (!value) {
+        return '';
+    }
 
-    // 備用處理：處理行尾或句尾的 cite 連結
-    text = text.replace(/\[(\d+)\]\(cite:([^)\n]+)\)/g, (match, num, citeText) => {
-        // 檢查是否已經編碼過（避免重複編碼）
-        if (citeText.includes('%')) {
-            return match;
-        }
-        const encodedText = encodeURIComponent(citeText.trim());
-        return `[${num}](cite:${encodedText})`;
-    });
-
-    return text;
+    try {
+        return encodeURIComponent(decodeURIComponent(value));
+    } catch (error) {
+        return encodeURIComponent(value);
+    }
 }
 
 /**
- * 解碼 cite: 連結中的文本
- * @param {string} encodedText - 編碼後的文本
- * @returns {string} 解碼後的文本
+ * Format consecutive citation links as: [1](...)｜[2](...)｜[3](...)
+ * Preserves original trailing whitespace/newline to avoid merging lines.
+ */
+function formatConsecutiveCitationLinks(text) {
+    const citationGroupRegex = /(?:\[\d+\]\(#:~:text=[^)\n]+\)\s*){2,}/g;
+    const citationLinkRegex = /\[\d+\]\(#:~:text=[^)\n]+\)/g;
+
+    return text.replace(citationGroupRegex, (group) => {
+        const trailingWhitespaceMatch = group.match(/\s*$/);
+        const trailingWhitespace = trailingWhitespaceMatch ? trailingWhitespaceMatch[0] : '';
+        const coreGroup = trailingWhitespace ? group.slice(0, -trailingWhitespace.length) : group;
+
+        const links = coreGroup.match(citationLinkRegex);
+        if (!links || links.length < 2) {
+            return group;
+        }
+
+        return `${links.join('｜')}${trailingWhitespace}`;
+    });
+}
+
+/**
+ * Process citation links in message text.
+ * Supports:
+ * 1) [n](#:~:text=...)
+ */
+export function processCitations(text) {
+    if (!text) {
+        return text;
+    }
+
+    // Ensure Text Fragment links are correctly encoded (boundary-aware)
+    text = text.replace(
+        /\[(\d+)\]\(#:~:text=(.+?)\)(?=\s|$|\[|[,.\u3002\]\)])/g,
+        (match, num, fragmentText) => `[${num}](${TEXT_FRAGMENT_PREFIX}${encodeCitationPayload(fragmentText)})`
+    );
+
+    // Fallback for Text Fragment links at line end/sentence end
+    text = text.replace(/\[(\d+)\]\(#:~:text=([^)\n]+)\)/g, (match, num, fragmentText) => {
+        return `[${num}](${TEXT_FRAGMENT_PREFIX}${encodeCitationPayload(fragmentText)})`;
+    });
+
+    return formatConsecutiveCitationLinks(text);
+}
+
+/**
+ * Decode citation payload.
  */
 export function decodeCitation(encodedText) {
     try {
         return decodeURIComponent(encodedText);
-    } catch (e) {
-        console.error('解碼引用文本失敗:', e);
+    } catch (error) {
+        console.error('Failed to decode citation text:', error);
         return encodedText;
     }
 }
 
 /**
- * 從 href 中提取引用文本
- * @param {string} href - 連結的 href 屬性值
- * @returns {string|null} 引用文本，如果不是 cite: 連結則返回 null
+ * Check whether an href is a citation link.
+ */
+export function isCitationLink(href) {
+    if (!href) return false;
+    return href.startsWith(TEXT_FRAGMENT_PREFIX);
+}
+
+/**
+ * Extract citation text from href.
  */
 export function extractCitationText(href) {
-    if (!href || !href.startsWith('cite:')) {
-        return null;
+    if (!href) return null;
+
+    if (href.startsWith(TEXT_FRAGMENT_PREFIX)) {
+        const encodedText = href.substring(TEXT_FRAGMENT_PREFIX.length);
+        return decodeCitation(encodedText);
     }
-    const encodedText = href.substring(5); // 移除 'cite:' 前綴
-    return decodeCitation(encodedText);
+
+    return null;
+}
+
+/**
+ * Get Text Fragment prefix.
+ */
+export function getTextFragmentPrefix() {
+    return TEXT_FRAGMENT_PREFIX;
 }

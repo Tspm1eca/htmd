@@ -328,14 +328,15 @@ export function restoreInlineCode(text, inlineCodeExpressions) {
 
 /**
  * 提取 Markdown 連結（防止連結中的 $ 符號被誤判為數學公式）
- * 注意：排除 cite: 連結，讓它們在後續的 cite 處理邏輯中正常處理
+ * 注意：排除引用連結（Text Fragment），讓它們在後續的引用處理邏輯中正常處理
  * @param {string} text - 要處理的文本
  * @param {Array} linkExpressions - 存儲連結的數組
  * @returns {string} 替換後的文本
  */
 export function extractLinks(text, linkExpressions) {
     let linkIndex = linkExpressions.length;
-    return text.replace(/\[([^\]]+)\]\((?!cite:)([^)]+)\)/g, (match) => {
+    // 排除 #:~:text= 格式的引用連結
+    return text.replace(/\[([^\]]+)\]\((?!#:~:text=)([^)]+)\)/g, (match) => {
         const placeholder = `%%LINK_EXPRESSION_${linkIndex}%%`;
         linkExpressions.push(match);
         linkIndex++;
