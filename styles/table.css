@@ -79,6 +79,7 @@ th {
     background-color: var(--cerebr-code-block-bg);
     font-weight: bold;
     position: relative;
+    text-align: center;
 }
 
 /* 欄位寬度調整手柄 */
