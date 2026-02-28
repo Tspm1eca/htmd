@@ -4,6 +4,7 @@
  */
 
 import { processCitations } from './citation.js';
+import { processTimestamps } from './timestamp.js';
 import {
     extractCodeBlocks,
     extractInlineCode,
@@ -139,7 +140,7 @@ function restoreMathExpressions(html, mathExpressions) {
  * @param {string} text - 要處理的文本
  * @returns {string} 處理後的 HTML
  */
-export function processMathAndMarkdown(text) {
+export function processMathAndMarkdown(text, { timestamps = false } = {}) {
     const mathExpressions = [];
     const imageExpressions = [];
     const linkExpressions = [];
@@ -189,6 +190,11 @@ export function processMathAndMarkdown(text) {
 
     // 處理 cite: 連結
     text = processCitations(text);
+
+    // 處理時間戳（將 [H:MM:SS] 轉為可點擊的跳轉連結，僅 YouTube 影片模式）
+    if (timestamps) {
+        text = processTimestamps(text);
+    }
 
     // 恢复 Markdown 連結（在 marked.parse 之前恢復，讓 marked 正確解析連結）
     text = restoreLinks(text, linkExpressions);
