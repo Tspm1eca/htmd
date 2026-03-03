@@ -96,6 +96,9 @@ export function processBoldFormatting(text) {
     text = text.replace(/\@\@(.+?)\@\@#/g, '**$1** ');
     text = text.replace(/\#\%(.+?)\%\#\@/g, '**$1** ');
     text = text.replace(/ *\*\*([^\s]+?)\*\*(?!\s)/g, ' **$1** ');
+    // 處理非空白非標點字元後接 **標點...** 的情況（如：CJK字**「text」**）
+    // 補空格使 marked.js 的 CommonMark 左側分隔符規則生效
+    text = text.replace(/([^\s\p{P}*])\*\*(\p{P}[^*]*?\*\*)/gu, '$1 **$2');
     text = text.replace(/(\*\*.+?\*\*)\s：/g, '$1：');
     text = text.replace(/(\*\*.+?\*\*)\s，/g, '$1，');
     text = text.replace(/(\*\*.+?\*\*)\s,/g, '$1,');
