@@ -339,7 +339,8 @@ export function restoreInlineCode(text, inlineCodeExpressions) {
 export function extractLinks(text, linkExpressions) {
     let linkIndex = linkExpressions.length;
     // 排除 #:~:text= 格式的引用連結
-    return text.replace(/\[([^\]]+)\]\((?!#:~:text=)([^)]+)\)/g, (match) => {
+    // 使用 (?:[^\]\\]|\\.)+ 來正確處理連結文字中的轉義方括號（如 \[...\]）
+    return text.replace(/\[((?:[^\]\\]|\\.)+)\]\((?!#:~:text=)([^)]+)\)/g, (match) => {
         const placeholder = `%%LINK_EXPRESSION_${linkIndex}%%`;
         linkExpressions.push(match);
         linkIndex++;
