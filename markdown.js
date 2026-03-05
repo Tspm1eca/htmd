@@ -143,6 +143,11 @@ export function renderMarkdown(text) {
     // 預處理表格中連結內的管道符號
     text = preprocessTableLinks(text);
 
+    // 將括號包裹的裸 URL 轉為顯式 autolink，防止 marked 的 GFM autolink
+    // 把 ) 後的文字也吞進 URL。例如 (https://a.com) → (<https://a.com>)
+    // 排除 markdown 連結語法 [text](url)（前面是 ]）
+    text = text.replace(/(?<!\])\((https?:\/\/[^\s()]+)\)/g, '(<$1>)');
+
     // 渲染 Markdown
     let html = marked.parse(text);
 
